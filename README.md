@@ -3,7 +3,7 @@ In development ⏳
 
 ## Roadmap
 - [x] Character & Movement
-- [] Canvas
-- [] Camera
-- [] Object
-- [] Collision System
+- [ ] Canvas
+- [ ] Camera
+- [ ] Object
+- [ ] Collision System
