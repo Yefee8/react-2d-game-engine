@@ -1,0 +1,31 @@
+{
+  "name": "react-2d-game-engine",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsup src/index.ts --format cjs,esm --dts"
+  },
+  "keywords": ["React", "2D", "Game", "Engine", "Game Engine", "React Game Engine"],
+  "author": "Yefee",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yefee8/react-2d-game-engine.git"
+  },
+  "license": "MIT",
+  "description": "A React 2D game engine",
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  },
+  "peerDependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  }
+}
