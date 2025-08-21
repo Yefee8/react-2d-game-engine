@@ -12,6 +12,7 @@ interface CharacterProps {
   sprintMultiplier?: number;
   speed?: number;
   jump?: boolean;
+  lockControls?: boolean;
   onAction?: (action: string, payload?: any) => void;
 }
 
@@ -25,6 +26,7 @@ export default function Character({
   sprintMultiplier = 1.4,
   speed = 5, // in pixels
   onAction,
+  lockControls = false,
 }: CharacterProps) {
   const keysPressed: any = useRef<Set<string>>(new Set());
   const velocityY = useRef(0);
@@ -67,63 +69,75 @@ export default function Character({
         (keysPressed.current.has(controls[3]) ||
           keysPressed.current.has("ShiftRight"));
 
-      setPosition((prev) => {
-        let newX = prev.x;
-        let newY = prev.y;
+      if (lockControls) {
+        keysPressed.current.clear();
+      } else {
+        setPosition((prev) => {
+          let newX = prev.x;
+          let newY = prev.y;
 
-        // Jump
-        if (jump && keysPressed.current.has(controls[0]) && newY === 0) {
-          velocityY.current = jumpHeight;
-          currentAction = "jump";
-        }
-
-        // Gravity effect (m/s²)
-        velocityY.current -= gravity * delta;
-
-        let candidateY = prev.y + velocityY.current;
-        if (newY > 0) currentAction = "inair";
-
-        // Ground collision
-        if (candidateY < 0) {
-          candidateY = 0;
-          velocityY.current = 0;
-        }
-
-        newY = candidateY;
-        // Moving left
-        if (keysPressed.current.has(controls[1])) {
-          newX = prev.x - speed * (isSprinting ? sprintMultiplier : 1);
-          currentAction = isSprinting ? "sprintLeft" : "walkLeft";
-        }
-        // Moving right
-        if (keysPressed.current.has(controls[2])) {
-          newX = prev.x + speed * (isSprinting ? sprintMultiplier : 1);
-          currentAction = isSprinting ? "sprintRight" : "walkRight";
-        }
-
-        if (onAction) {
-          if (
-            currentAction === "idle" &&
-            currentAction === lastAction.current
-          ) {
-          } else {
-            onAction(currentAction, {
-              x: newX,
-              y: newY,
-              velocityY: velocityY.current,
-            });
-            lastAction.current = currentAction;
+          // Jump
+          if (jump && keysPressed.current.has(controls[0]) && newY === 0) {
+            velocityY.current = jumpHeight;
+            currentAction = "jump";
           }
-        }
-        return { x: newX, y: newY };
-      });
+
+          // Gravity effect (m/s²)
+          velocityY.current -= gravity * delta;
+
+          let candidateY = prev.y + velocityY.current;
+          if (newY > 0) currentAction = "inair";
+
+          // Ground collision
+          if (candidateY < 0) {
+            candidateY = 0;
+            velocityY.current = 0;
+          }
+
+          newY = candidateY;
+          // Moving left
+          if (keysPressed.current.has(controls[1])) {
+            newX = prev.x - speed * (isSprinting ? sprintMultiplier : 1);
+            currentAction = isSprinting ? "sprintLeft" : "walkLeft";
+          }
+          // Moving right
+          if (keysPressed.current.has(controls[2])) {
+            newX = prev.x + speed * (isSprinting ? sprintMultiplier : 1);
+            currentAction = isSprinting ? "sprintRight" : "walkRight";
+          }
+
+          if (onAction) {
+            if (
+              currentAction === "idle" &&
+              currentAction === lastAction.current
+            ) {
+            } else {
+              onAction(currentAction, {
+                x: newX,
+                y: newY,
+                velocityY: velocityY.current,
+              });
+              lastAction.current = currentAction;
+            }
+          }
+          return { x: newX, y: newY };
+        });
+      }
 
       animationFrame = requestAnimationFrame(loop);
     };
 
     animationFrame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animationFrame);
-  }, [controls, sprint, speed, sprintMultiplier, jumpHeight, onAction]);
+  }, [
+    controls,
+    sprint,
+    speed,
+    sprintMultiplier,
+    jumpHeight,
+    onAction,
+    lockControls,
+  ]);
 
   return (
     <div
