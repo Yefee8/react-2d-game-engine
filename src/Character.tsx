@@ -146,6 +146,8 @@ export default function Character({
           position.x
         }px, ${-position.y}px, 0) scaleX(${facing})`,
         willChange: "transform",
+        display: "inline-block",
+        width: "auto",
       }}
     >
       {children}
