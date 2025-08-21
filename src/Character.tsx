@@ -14,6 +14,7 @@ interface CharacterProps {
   jump?: boolean;
   lockControls?: boolean;
   onAction?: (action: string, payload?: any) => void;
+  [key: string]: any; // For additional props like ref
 }
 
 export default function Character({
@@ -27,15 +28,17 @@ export default function Character({
   speed = 5, // in pixels
   onAction,
   lockControls = false,
+  ...props
 }: CharacterProps) {
   const keysPressed: any = useRef<Set<string>>(new Set());
   const velocityY = useRef(0);
   const lastAction = useRef<string>("idle");
-
+  const [action, setAction] = useState<string>("idle");
   const [position, setPosition] = useState({
     x: 0,
     y: 0,
   });
+  const [facing, setFacing] = useState<1 | -1>(1);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,10 +63,18 @@ export default function Character({
   }, []);
 
   useEffect(() => {
+    if (onAction) {
+      if (action !== lastAction.current) {
+        onAction(action);
+        lastAction.current = action;
+      }
+    }
+  }, [position, action, onAction]);
+
+  useEffect(() => {
     let animationFrame: number;
     const delta = 1 / 60;
     const loop = () => {
-      let currentAction = "idle";
       let isSprinting =
         sprint &&
         (keysPressed.current.has(controls[3]) ||
@@ -79,14 +90,14 @@ export default function Character({
           // Jump
           if (jump && keysPressed.current.has(controls[0]) && newY === 0) {
             velocityY.current = jumpHeight;
-            currentAction = "jump";
+            setAction("jump");
           }
 
           // Gravity effect (m/s²)
           velocityY.current -= gravity * delta;
 
           let candidateY = prev.y + velocityY.current;
-          if (newY > 0) currentAction = "inair";
+          if (newY > 0) setAction("inair");
 
           // Ground collision
           if (candidateY < 0) {
@@ -98,30 +109,18 @@ export default function Character({
           // Moving left
           if (keysPressed.current.has(controls[1])) {
             newX = prev.x - speed * (isSprinting ? sprintMultiplier : 1);
-            currentAction = isSprinting ? "sprintLeft" : "walkLeft";
+            setFacing(-1);
+            setAction(isSprinting ? "sprintLeft" : "walkLeft");
           }
           // Moving right
           if (keysPressed.current.has(controls[2])) {
             newX = prev.x + speed * (isSprinting ? sprintMultiplier : 1);
-            currentAction = isSprinting ? "sprintRight" : "walkRight";
-          }
-
-          if (onAction) {
-            if (
-              currentAction === "idle" &&
-              currentAction === lastAction.current
-            ) {
-            } else {
-              onAction(currentAction, {
-                x: newX,
-                y: newY,
-                velocityY: velocityY.current,
-              });
-              lastAction.current = currentAction;
-            }
+            setFacing(1);
+            setAction(isSprinting ? "sprintRight" : "walkRight");
           }
           return { x: newX, y: newY };
         });
+        setAction("idle");
       }
 
       animationFrame = requestAnimationFrame(loop);
@@ -135,14 +134,17 @@ export default function Character({
     speed,
     sprintMultiplier,
     jumpHeight,
-    onAction,
     lockControls,
+    setFacing,
   ]);
 
   return (
     <div
+      {...props}
       style={{
-        transform: `translate3d(${position.x}px, ${-position.y}px, 0)`,
+        transform: `translate3d(${
+          position.x
+        }px, ${-position.y}px, 0) scaleX(${facing})`,
         willChange: "transform",
       }}
     >
