@@ -1,13 +1,16 @@
 {
   "name": "react-2d-game-engine",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "type": "module",
-  "main": "dist/index.cjs.js",
-  "module": "dist/index.esm.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsup src/index.ts --format cjs,esm --dts"
+    "build": "tsup src/index.ts --format cjs,esm --dts && tsc"
   },
   "keywords": [
     "react",
