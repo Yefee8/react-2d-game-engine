@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/globals.css"],"sourcesContent":["#canvas {\r\n  position: relative;\r\n  width: 100%;\r\n  height: 100%;\r\n  overflow: scroll;\r\n}\r\n\r\n#canvas::-webkit-scrollbar {\r\n  width: 0px;\r\n  background: none;\r\n}\r\n"],"mappings":";AAAA,CAAC;AACC,YAAU;AACV,SAAO;AACP,UAAQ;AACR,YAAU;AACZ;AAEA,CAPC,MAOM;AACL,SAAO;AACP,cAAY;AACd;","names":[]}
