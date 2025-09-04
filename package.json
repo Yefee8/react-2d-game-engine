@@ -9,14 +9,22 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsup src/index.ts --format cjs,esm --dts"
   },
-  "keywords": ["React", "2D", "Game", "Engine", "Game Engine", "React Game Engine"],
+  "keywords": [
+    "React",
+    "typescript",
+    "2D",
+    "Game",
+    "Engine",
+    "Game Engine",
+    "React Game Engine"
+  ],
   "author": "Yefee",
   "repository": {
     "type": "git",
     "url": "https://github.com/Yefee8/react-2d-game-engine.git"
   },
   "license": "MIT",
-  "description": "A React 2D game engine",
+  "description": "A 2D Game Engine built with React.",
   "devDependencies": {
     "@types/react": "^19.1.10",
     "react": "^19.1.1",
