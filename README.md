@@ -1,6 +1,7 @@
 # React 2D Game Engine
 
 It's a game engine built with React.js. It's still in development but designed to allow developers to quickly prototype 2D games in React, with support for characters, camera, objects, and collisions.
+[npm](https://www.npmjs.com/package/react-2d-game-engine)
 
 ## Roadmap
 

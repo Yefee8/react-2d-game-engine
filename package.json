@@ -2,21 +2,21 @@
   "name": "react-2d-game-engine",
   "version": "1.0.0",
   "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsup src/index.ts --format cjs,esm --dts"
   },
   "keywords": [
-    "React",
+    "react",
     "typescript",
-    "2D",
-    "Game",
-    "Engine",
-    "Game Engine",
-    "React Game Engine"
+    "2d",
+    "game",
+    "engine",
+    "game engine",
+    "react game engine",
+    "react-game-engine",
+    "react2dgameengine",
+    "react-2d-game-engine"
   ],
   "author": "Yefee",
   "repository": {
