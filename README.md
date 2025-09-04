@@ -5,5 +5,6 @@ In development ⏳
 - [x] Character & Movement
 - [x] Canvas
 - [x] Camera
-- [ ] Object
-- [ ] Collision System
+- [x] Object
+- [x] Collision System
+- [ ] Collision System for elements that use border-radius.

@@ -1,156 +1,219 @@
 "use client";
 
+import React, {
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+} from "react";
 import { basicGravity, basicJumpHeight } from "./utils.ts";
-import { type ReactNode, useEffect, useRef, useState } from "react";
 
 interface CharacterProps {
-  gravity?: number;
-  jumpHeight?: number;
-  controls?: string[]; // ["KeyW", "KeyA", "KeyD", "ShiftLeft"]
-  sprint?: boolean;
-  children?: ReactNode;
-  sprintMultiplier?: number;
-  speed?: number;
-  jump?: boolean;
-  lockControls?: boolean;
+  gravity?: number;                 // Gravity force (positive = downward in world)
+  jumpHeight?: number;              // Initial jump velocity
+  controls?: string[];              // ["KeyW","KeyA","KeyD","ShiftLeft"]
+  sprint?: boolean;                 // Enable sprint
+  sprintMultiplier?: number;        // Sprint speed multiplier
+  speed?: number;                   // Base speed in px/frame
+  jump?: boolean;                   // Enable jump
+  lockControls?: boolean;           // Disable movement
   onAction?: (action: string, payload?: any) => void;
-  [key: string]: any; // For additional props like ref
+  objects?: { x: number; y: number; width: number; height: number }[]; // Collidable objects
+  children?: ReactNode;
+  [key: string]: any;
 }
 
-export default function Character({
-  gravity = basicGravity,
-  jumpHeight = basicJumpHeight,
-  controls = ["KeyW", "KeyA", "KeyD", "ShiftLeft"],
-  sprint = true,
-  jump = true,
-  children,
-  sprintMultiplier = 1.4,
-  speed = 5, // in pixels
-  onAction,
-  lockControls = false,
-  ...props
-}: CharacterProps) {
-  const keysPressed: any = useRef<Set<string>>(new Set());
+// Simple AABB (Axis-Aligned Bounding Box) overlap check
+function aabbOverlap(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number
+) {
+  const aLeft = ax,           aRight = ax + aw;
+  const aBottom = ay,         aTop   = ay + ah;
+  const bLeft = bx,           bRight = bx + bw;
+  const bBottom = by,         bTop   = by + bh;
+  return aLeft < bRight && aRight > bLeft && aBottom < bTop && aTop > bBottom;
+}
+
+const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
+  {
+    gravity = basicGravity,
+    jumpHeight = basicJumpHeight,
+    controls = ["KeyW", "KeyA", "KeyD", "ShiftLeft"],
+    sprint = true,
+    sprintMultiplier = 1.4,
+    speed = 5,
+    jump = true,
+    lockControls = false,
+    onAction,
+    objects = [],
+    children,
+    ...rest
+  },
+  externalRef
+) {
+  const keysPressed = useRef<Set<string>>(new Set());
   const velocityY = useRef(0);
+  const groundedRef = useRef(true);            // Is the player on the ground?
   const lastAction = useRef<string>("idle");
+
   const [action, setAction] = useState<string>("idle");
-  const [position, setPosition] = useState({
-    x: 0,
-    y: 0,
-  });
+  const [pos, setPos] = useState({ x: 0, y: 0 });
   const [facing, setFacing] = useState<1 | -1>(1);
 
+  // Combine external ref (from parent) with internal ref (for size & collision)
+  const nodeRef = useRef<HTMLDivElement | null>(null);
+  const setRefs = (el: HTMLDivElement | null) => {
+    nodeRef.current = el;
+    if (typeof externalRef === "function") externalRef(el);
+    else if (externalRef) (externalRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
+
+  // Keyboard input handling
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      keysPressed.current.add(e.code);
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keysPressed.current.delete(e.code);
-    };
-    const handleBlur = () => {
-      keysPressed.current.clear();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("blur", handleBlur);
-
+    const down = (e: KeyboardEvent) => keysPressed.current.add(e.code);
+    const up   = (e: KeyboardEvent) => keysPressed.current.delete(e.code);
+    const blur = () => keysPressed.current.clear();
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
     };
   }, []);
 
+  // Notify parent when action changes
   useEffect(() => {
-    if (onAction) {
-      if (action !== lastAction.current) {
-        onAction(action);
-        lastAction.current = action;
-      }
+    if (!onAction) return;
+    if (action !== lastAction.current) {
+      onAction(action, { x: pos.x, y: pos.y, vy: velocityY.current, grounded: groundedRef.current });
+      lastAction.current = action;
     }
-  }, [position, action, onAction]);
+  }, [action, pos, onAction]);
 
+  // Main physics loop
   useEffect(() => {
-    let animationFrame: number;
-    const delta = 1 / 60;
+    let raf: number;
+    const dt = 1 / 60;
+
     const loop = () => {
-      let isSprinting =
-        sprint &&
-        (keysPressed.current.has(controls[3]) ||
-          keysPressed.current.has("ShiftRight"));
+      if (!lockControls) {
+        setPos((prev) => {
+          // Character dimensions (fallback: 50x50 if unknown)
+          const rect = nodeRef.current?.getBoundingClientRect();
+          const cw = Math.max(1, rect?.width ?? 50);
+          const ch = Math.max(1, rect?.height ?? 50);
 
-      if (lockControls) {
-        keysPressed.current.clear();
-      } else {
-        setPosition((prev) => {
-          let newX = prev.x;
-          let newY = prev.y;
+          // Movement base speed (with sprinting)
+          const isSprint =
+            sprint &&
+            (keysPressed.current.has(controls[3]) ||
+              keysPressed.current.has("ShiftRight"));
+          const base = speed * (isSprint ? sprintMultiplier : 1);
 
-          // Jump
-          if (jump && keysPressed.current.has(controls[0]) && newY === 0) {
+          // Horizontal movement
+          let dx = 0;
+          if (keysPressed.current.has(controls[1])) dx -= base; // Left
+          if (keysPressed.current.has(controls[2])) dx += base; // Right
+
+          // Jumping only if grounded
+          let startedJump = false;
+          if (jump && groundedRef.current && keysPressed.current.has(controls[0])) {
             velocityY.current = jumpHeight;
-            setAction("jump");
+            groundedRef.current = false;
+            startedJump = true;
           }
 
-          // Gravity effect (m/s²)
-          velocityY.current -= gravity * delta;
+          // Apply gravity
+          velocityY.current -= gravity * dt;
 
-          let candidateY = prev.y + velocityY.current;
-          if (newY > 0) setAction("inair");
+          // --- Horizontal collision check (sweep X) ---
+          let candX = prev.x + dx;
+          if (dx !== 0 && objects.length) {
+            for (const o of objects) {
+              if (aabbOverlap(candX, prev.y, cw, ch, o.x, o.y, o.width, o.height)) {
+                if (dx > 0) candX = o.x - cw;      // Hitting wall from left
+                else candX = o.x + o.width;        // Hitting wall from right
+                onAction?.("collide", { with: o }); // Notify collision
+              }
+            }
+          }
 
-          // Ground collision
-          if (candidateY < 0) {
-            candidateY = 0;
+          // --- Vertical collision check (sweep Y) ---
+          const vy = velocityY.current;
+          let candY = prev.y + vy;
+          let landed = false;
+
+          if (objects.length) {
+            for (const o of objects) {
+              if (aabbOverlap(candX, candY, cw, ch, o.x, o.y, o.width, o.height)) {
+                if (vy < 0) {
+                  // Falling down → land on top of object
+                  candY = o.y + o.height;
+                  landed = true;
+                  velocityY.current = 0;
+                  onAction?.("collide", { with: o });
+                } else if (vy > 0) {
+                  // Going up → hit underside
+                  candY = o.y - ch;
+                  velocityY.current = 0;
+                  onAction?.("collide", { with: o });
+                }
+              }
+            }
+          }
+
+          // Ground level (y=0)
+          if (candY < 0) {
+            candY = 0;
             velocityY.current = 0;
+            landed = true;
           }
 
-          newY = candidateY;
-          // Moving left
-          if (keysPressed.current.has(controls[1])) {
-            newX = prev.x - speed * (isSprinting ? sprintMultiplier : 1);
-            setFacing(-1);
-            setAction(isSprinting ? "sprintLeft" : "walkLeft");
-          }
-          // Moving right
-          if (keysPressed.current.has(controls[2])) {
-            newX = prev.x + speed * (isSprinting ? sprintMultiplier : 1);
-            setFacing(1);
-            setAction(isSprinting ? "sprintRight" : "walkRight");
-          }
-          return { x: newX, y: newY };
+          groundedRef.current = landed;
+
+          // Facing direction
+          if (dx < 0) setFacing(-1);
+          else if (dx > 0) setFacing(1);
+
+          // Select action state
+          let nextAction = "idle";
+          if (startedJump) nextAction = "jump";
+          else if (!groundedRef.current) nextAction = "inair";
+          else if (dx !== 0) nextAction = isSprint ? (dx > 0 ? "sprintRight" : "sprintLeft")
+                                                   : (dx > 0 ? "walkRight"   : "walkLeft");
+
+          setAction(nextAction);
+
+          return { x: candX, y: candY };
         });
-        setAction("idle");
       }
 
-      animationFrame = requestAnimationFrame(loop);
+      raf = requestAnimationFrame(loop);
     };
 
-    animationFrame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [
-    controls,
-    sprint,
-    speed,
-    sprintMultiplier,
-    jumpHeight,
-    lockControls,
-    setFacing,
-  ]);
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [controls, sprint, sprintMultiplier, speed, jump, gravity, lockControls]);
 
   return (
     <div
-      {...props}
+      ref={setRefs}
+      {...rest}
       style={{
-        transform: `translate3d(${
-          position.x
-        }px, ${-position.y}px, 0) scaleX(${facing})`,
+        transform: `translate3d(${pos.x}px, ${-pos.y}px, 0) scaleX(${facing})`,
         willChange: "transform",
         display: "inline-block",
         width: "auto",
+        ...(rest.style || {}),
       }}
     >
       {children}
     </div>
   );
-}
+});
+
+export default Character;
