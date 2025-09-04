@@ -140,11 +140,8 @@ onAction={(action) => {
 ```tsx
 "use client";
 
-import Camera from "@/components/Camera";
-import Canvas from "@/components/Canvas";
-import Character from "@/components/Character";
-import GameObject from "@/components/Object";
 import { useRef } from "react";
+import { GameObject, Character, Camera, Canvas } from "react-2d-game-engine";
 
 export default function Home() {
   const canvasRef = useRef<HTMLDivElement>(null);
