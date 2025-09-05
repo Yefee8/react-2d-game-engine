@@ -60,7 +60,7 @@ Camera works with scroll. So parentRef should be the main container (like Canvas
 import { Camera } from "react-2d-game-engine";
 
 <Camera parentRef={canvasRef} characterRef={characterRef}>
-  {/* Your character and objects go here */}
+  {/* Your character goes here */}
 </Camera>;
 ```
 
@@ -99,13 +99,16 @@ const characterRef = useRef<HTMLDivElement>(null);
 
 **Props:**
 
-- `gravity`: Gravity applied to the character.
-- `jumpHeight`: Jump strength.
-- `speed`: Horizontal movement speed.
-- `sprintMultiplier`: Multiplier for sprinting.
-- `controls`: Array of key codes for movement `[Jump, Left, Right, Sprint]`.
-- `objects`: Array of objects with `{ x, y, width, height }` to collide with.
-- `onAction`: Callback fired on actions like moving, jumping, or colliding.
+- `gravity` (optional, 9.8 is the default): Gravity applied to the character.
+- `jumpHeight` (optional, 9 is the default): Jump strength.
+- `speed` (optional, 5 is the default): Horizontal movement speed.
+- `sprintMultiplier` (optional, 1.4 is the default): Multiplier for sprinting.
+- `controls` (optional, `["KeyW", "KeyA", "KeyD", "ShiftLeft"]` is the default): Array of key codes for movement `[Jump, Left, Right, Sprint]`.
+- `objects` (optional): Array of objects with `{ x, y, width, height }` to collide with.
+- `onAction` (optional): Callback fired on actions like moving, jumping, or colliding.
+- `jump` (optional, default is true): Allows character to jump or not
+- `jumpCount` (optional, default is 1): defines the number of jumps allowed in succession (e.g., 1 = single, 2 = double, etc.)."
+- `children`: Sprite etc. 
 
 ### GameObject
 
@@ -159,7 +162,7 @@ export default function Home() {
           }}
         >
           <Camera parentRef={canvasRef} characterRef={characterRef}>
-            <Character
+            <Character jumpCount={2}
               objects={[
                 { x: 400, y: 0, width: 100, height: 50 },
                 { x: 600, y: 50, width: 100, height: 50 },

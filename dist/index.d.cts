@@ -9,6 +9,7 @@ interface CharacterProps {
     sprintMultiplier?: number;
     speed?: number;
     jump?: boolean;
+    jumpCount?: number;
     lockControls?: boolean;
     onAction?: (action: string, payload?: any) => void;
     objects?: {

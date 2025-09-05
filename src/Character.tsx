@@ -10,14 +10,15 @@ import React, {
 import { basicGravity, basicJumpHeight } from "./utils.ts";
 
 interface CharacterProps {
-  gravity?: number;                 // Gravity force (positive = downward in world)
-  jumpHeight?: number;              // Initial jump velocity
-  controls?: string[];              // ["KeyW","KeyA","KeyD","ShiftLeft"]
-  sprint?: boolean;                 // Enable sprint
-  sprintMultiplier?: number;        // Sprint speed multiplier
-  speed?: number;                   // Base speed in px/frame
-  jump?: boolean;                   // Enable jump
-  lockControls?: boolean;           // Disable movement
+  gravity?: number; // Gravity force (positive = downward in world)
+  jumpHeight?: number; // Initial jump velocity
+  controls?: string[]; // ["KeyW","KeyA","KeyD","ShiftLeft"]
+  sprint?: boolean; // Enable sprint
+  sprintMultiplier?: number; // Sprint speed multiplier
+  speed?: number; // Base speed in px/frame
+  jump?: boolean; // Enable jump
+  jumpCount?: number; // How many jumps allowed (1=normal, 2=double jump, etc.)
+  lockControls?: boolean; // Disable movement
   onAction?: (action: string, payload?: any) => void;
   objects?: { x: number; y: number; width: number; height: number }[]; // Collidable objects
   children?: ReactNode;
@@ -26,13 +27,23 @@ interface CharacterProps {
 
 // Simple AABB (Axis-Aligned Bounding Box) overlap check
 function aabbOverlap(
-  ax: number, ay: number, aw: number, ah: number,
-  bx: number, by: number, bw: number, bh: number
+  ax: number,
+  ay: number,
+  aw: number,
+  ah: number,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number
 ) {
-  const aLeft = ax,           aRight = ax + aw;
-  const aBottom = ay,         aTop   = ay + ah;
-  const bLeft = bx,           bRight = bx + bw;
-  const bBottom = by,         bTop   = by + bh;
+  const aLeft = ax,
+    aRight = ax + aw;
+  const aBottom = ay,
+    aTop = ay + ah;
+  const bLeft = bx,
+    bRight = bx + bw;
+  const bBottom = by,
+    bTop = by + bh;
   return aLeft < bRight && aRight > bLeft && aBottom < bTop && aTop > bBottom;
 }
 
@@ -45,6 +56,7 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
     sprintMultiplier = 1.4,
     speed = 5,
     jump = true,
+    jumpCount = 1,
     lockControls = false,
     onAction,
     objects = [],
@@ -55,7 +67,7 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
 ) {
   const keysPressed = useRef<Set<string>>(new Set());
   const velocityY = useRef(0);
-  const groundedRef = useRef(true);            // Is the player on the ground?
+  const groundedRef = useRef(true); // Is the player on the ground?
   const lastAction = useRef<string>("idle");
 
   const [action, setAction] = useState<string>("idle");
@@ -64,16 +76,22 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
 
   // Combine external ref (from parent) with internal ref (for size & collision)
   const nodeRef = useRef<HTMLDivElement | null>(null);
+
+  const currentJumps = useRef(0);
+  const jumpPressedLastFrame = useRef(false);
+
   const setRefs = (el: HTMLDivElement | null) => {
     nodeRef.current = el;
     if (typeof externalRef === "function") externalRef(el);
-    else if (externalRef) (externalRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    else if (externalRef)
+      (externalRef as React.MutableRefObject<HTMLDivElement | null>).current =
+        el;
   };
 
   // Keyboard input handling
   useEffect(() => {
     const down = (e: KeyboardEvent) => keysPressed.current.add(e.code);
-    const up   = (e: KeyboardEvent) => keysPressed.current.delete(e.code);
+    const up = (e: KeyboardEvent) => keysPressed.current.delete(e.code);
     const blur = () => keysPressed.current.clear();
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
@@ -89,7 +107,12 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
   useEffect(() => {
     if (!onAction) return;
     if (action !== lastAction.current) {
-      onAction(action, { x: pos.x, y: pos.y, vy: velocityY.current, grounded: groundedRef.current });
+      onAction(action, {
+        x: pos.x,
+        y: pos.y,
+        vy: velocityY.current,
+        grounded: groundedRef.current,
+      });
       lastAction.current = action;
     }
   }, [action, pos, onAction]);
@@ -121,11 +144,22 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
 
           // Jumping only if grounded
           let startedJump = false;
-          if (jump && groundedRef.current && keysPressed.current.has(controls[0])) {
+          const isJumpPressed = keysPressed.current.has(controls[0]);
+
+          if (
+            jump &&
+            isJumpPressed &&
+            !jumpPressedLastFrame.current &&
+            ((jumpCount && jumpCount > 1 && currentJumps.current < jumpCount) ||
+              (jumpCount === 1 && groundedRef.current))
+          ) {
             velocityY.current = jumpHeight;
             groundedRef.current = false;
+            currentJumps.current += 1;
             startedJump = true;
           }
+
+          jumpPressedLastFrame.current = isJumpPressed;
 
           // Apply gravity
           velocityY.current -= gravity * dt;
@@ -134,9 +168,11 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
           let candX = prev.x + dx;
           if (dx !== 0 && objects.length) {
             for (const o of objects) {
-              if (aabbOverlap(candX, prev.y, cw, ch, o.x, o.y, o.width, o.height)) {
-                if (dx > 0) candX = o.x - cw;      // Hitting wall from left
-                else candX = o.x + o.width;        // Hitting wall from right
+              if (
+                aabbOverlap(candX, prev.y, cw, ch, o.x, o.y, o.width, o.height)
+              ) {
+                if (dx > 0) candX = o.x - cw; // Hitting wall from left
+                else candX = o.x + o.width; // Hitting wall from right
                 onAction?.("collide", { with: o }); // Notify collision
               }
             }
@@ -149,7 +185,9 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
 
           if (objects.length) {
             for (const o of objects) {
-              if (aabbOverlap(candX, candY, cw, ch, o.x, o.y, o.width, o.height)) {
+              if (
+                aabbOverlap(candX, candY, cw, ch, o.x, o.y, o.width, o.height)
+              ) {
                 if (vy < 0) {
                   // Falling down → land on top of object
                   candY = o.y + o.height;
@@ -173,8 +211,8 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
             landed = true;
           }
 
+          if (landed) currentJumps.current = 0;
           groundedRef.current = landed;
-
           // Facing direction
           if (dx < 0) setFacing(-1);
           else if (dx > 0) setFacing(1);
@@ -183,8 +221,14 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
           let nextAction = "idle";
           if (startedJump) nextAction = "jump";
           else if (!groundedRef.current) nextAction = "inair";
-          else if (dx !== 0) nextAction = isSprint ? (dx > 0 ? "sprintRight" : "sprintLeft")
-                                                   : (dx > 0 ? "walkRight"   : "walkLeft");
+          else if (dx !== 0)
+            nextAction = isSprint
+              ? dx > 0
+                ? "sprintRight"
+                : "sprintLeft"
+              : dx > 0
+              ? "walkRight"
+              : "walkLeft";
 
           setAction(nextAction);
 

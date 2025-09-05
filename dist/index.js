@@ -27,6 +27,7 @@ var Character = forwardRef(function Character2({
   sprintMultiplier = 1.4,
   speed = 5,
   jump = true,
+  jumpCount = 1,
   lockControls = false,
   onAction,
   objects = [],
@@ -41,10 +42,13 @@ var Character = forwardRef(function Character2({
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [facing, setFacing] = useState(1);
   const nodeRef = useRef(null);
+  const currentJumps = useRef(0);
+  const jumpPressedLastFrame = useRef(false);
   const setRefs = (el) => {
     nodeRef.current = el;
     if (typeof externalRef === "function") externalRef(el);
-    else if (externalRef) externalRef.current = el;
+    else if (externalRef)
+      externalRef.current = el;
   };
   useEffect(() => {
     const down = (e) => keysPressed.current.add(e.code);
@@ -62,7 +66,12 @@ var Character = forwardRef(function Character2({
   useEffect(() => {
     if (!onAction) return;
     if (action !== lastAction.current) {
-      onAction(action, { x: pos.x, y: pos.y, vy: velocityY.current, grounded: groundedRef.current });
+      onAction(action, {
+        x: pos.x,
+        y: pos.y,
+        vy: velocityY.current,
+        grounded: groundedRef.current
+      });
       lastAction.current = action;
     }
   }, [action, pos, onAction]);
@@ -81,11 +90,14 @@ var Character = forwardRef(function Character2({
           if (keysPressed.current.has(controls[1])) dx -= base;
           if (keysPressed.current.has(controls[2])) dx += base;
           let startedJump = false;
-          if (jump && groundedRef.current && keysPressed.current.has(controls[0])) {
+          const isJumpPressed = keysPressed.current.has(controls[0]);
+          if (jump && isJumpPressed && !jumpPressedLastFrame.current && (jumpCount && jumpCount > 1 && currentJumps.current < jumpCount || jumpCount === 1 && groundedRef.current)) {
             velocityY.current = jumpHeight;
             groundedRef.current = false;
+            currentJumps.current += 1;
             startedJump = true;
           }
+          jumpPressedLastFrame.current = isJumpPressed;
           velocityY.current -= gravity * dt;
           let candX = prev.x + dx;
           if (dx !== 0 && objects.length) {
@@ -121,13 +133,15 @@ var Character = forwardRef(function Character2({
             velocityY.current = 0;
             landed = true;
           }
+          if (landed) currentJumps.current = 0;
           groundedRef.current = landed;
           if (dx < 0) setFacing(-1);
           else if (dx > 0) setFacing(1);
           let nextAction = "idle";
           if (startedJump) nextAction = "jump";
           else if (!groundedRef.current) nextAction = "inair";
-          else if (dx !== 0) nextAction = isSprint ? dx > 0 ? "sprintRight" : "sprintLeft" : dx > 0 ? "walkRight" : "walkLeft";
+          else if (dx !== 0)
+            nextAction = isSprint ? dx > 0 ? "sprintRight" : "sprintLeft" : dx > 0 ? "walkRight" : "walkLeft";
           setAction(nextAction);
           return { x: candX, y: candY };
         });
