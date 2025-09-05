@@ -21,6 +21,14 @@ interface CharacterProps {
   lockControls?: boolean; // Disable movement
   onAction?: (action: string, payload?: any) => void;
   objects?: { x: number; y: number; width: number; height: number }[]; // Collidable objects
+  movingPlatforms?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    deltaX?: number;
+    deltaY?: number;
+  }[];
   children?: ReactNode;
   [key: string]: any;
 }
@@ -61,6 +69,7 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
     onAction,
     objects = [],
     children,
+    movingPlatforms = [],
     ...rest
   },
   externalRef
@@ -213,6 +222,21 @@ const Character = forwardRef<HTMLDivElement, CharacterProps>(function Character(
 
           if (landed) currentJumps.current = 0;
           groundedRef.current = landed;
+
+          if (groundedRef.current && movingPlatforms?.length) {
+            for (const p of movingPlatforms) {
+              const isOnPlatform =
+                candX + cw > p.x &&
+                candX < p.x + p.width &&
+                Math.abs(candY - (p.y + p.height)) < 2;
+
+              if (isOnPlatform) {
+                if (p.deltaX) candX += p.deltaX;
+                if (p.deltaY) candY += p.deltaY;
+              }
+            }
+          }
+
           // Facing direction
           if (dx < 0) setFacing(-1);
           else if (dx > 0) setFacing(1);

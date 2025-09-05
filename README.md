@@ -108,6 +108,7 @@ const characterRef = useRef<HTMLDivElement>(null);
 - `onAction` (optional): Callback fired on actions like moving, jumping, or colliding.
 - `jump` (optional, default is true): Allows character to jump or not
 - `jumpCount` (optional, default is 1): defines the number of jumps allowed in succession (e.g., 1 = single, 2 = double, etc.)."
+- `movingPlatforms` (optional): Array of objects with `{x, y,  width, height, deltaX deltaY}` for moving platforms.
 - `children`: Sprite etc. 
 
 ### GameObject
@@ -138,20 +139,51 @@ onAction={(action) => {
 
 > Note: Circular or rounded collisions (border-radius) will be supported in a future release.
 
-## Example Use:
+## Example Use (with moving platform):
 
 ```tsx
 "use client";
 
-import { useRef } from "react";
-import { GameObject, Character, Camera, Canvas } from "react-2d-game-engine";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Canvas, Character, GameObject } from "react-2d-game-engine";
 
 export default function Home() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const characterRef = useRef<HTMLDivElement>(null);
+
+  const [movingPlatforms, setMovingPlatforms] = useState([
+    { x: 900, y: 175, width: 100, height: 50, direction: 1 },
+  ]);
+
+  const previousPositions = useRef(movingPlatforms.map((p) => ({ x: p.x, y: p.y })));
+
+  useEffect(() => {
+    let animationFrameId: number;
+
+    const animate = () => {
+      setMovingPlatforms((prev) =>
+        prev.map((p, i) => {
+          let dir = p.direction;
+          if (p.x >= 1300) dir = -1;
+          if (p.x <= 900) dir = 1;
+          const newX = p.x + 2 * dir;
+
+          previousPositions.current[i] = { x: p.x, y: p.y };
+
+          return { ...p, x: newX, direction: dir };
+        })
+      );
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
+
   return (
     <div style={{ height: "100vh" }}>
-      <Canvas ref={canvasRef}>
+      <Canvas ref={canvasRef} style={{ width: "1000px" }}>
         <div
           style={{
             width: "6000px",
@@ -162,12 +194,23 @@ export default function Home() {
           }}
         >
           <Camera parentRef={canvasRef} characterRef={characterRef}>
-            <Character jumpCount={2}
+            <Character
+              jumpCount={2}
               objects={[
                 { x: 400, y: 0, width: 100, height: 50 },
-                { x: 600, y: 50, width: 100, height: 50 },
-                { x: 900, y: 150, width: 100, height: 50 },
+                { x: 600, y: 100, width: 102, height: 50 },
+                ...movingPlatforms.map((p) => ({
+                  x: p.x,
+                  y: p.y,
+                  width: p.width,
+                  height: p.height,
+                })),
               ]}
+              movingPlatforms={movingPlatforms.map((p, i) => ({
+                ...p,
+                deltaX: p.x - previousPositions.current[i].x,
+                deltaY: p.y - previousPositions.current[i].y,
+              }))}
               ref={characterRef}
             >
               <div className="character" />
@@ -177,10 +220,14 @@ export default function Home() {
           <GameObject id="box1" x={400} y={0}>
             <div style={{ width: 100, height: 50, backgroundColor: "brown" }} />
           </GameObject>
-          <GameObject id="box2" x={600} y={50}>
+          <GameObject id="box2" x={600} y={100}>
             <div style={{ width: 100, height: 50, backgroundColor: "brown" }} />
           </GameObject>
-          <GameObject id="box2" x={900} y={150}>
+          <GameObject
+            id="movingPlatform"
+            x={movingPlatforms[0].x}
+            y={movingPlatforms[0].y}
+          >
             <div style={{ width: 100, height: 50, backgroundColor: "brown" }} />
           </GameObject>
         </div>

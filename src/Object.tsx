@@ -1,4 +1,3 @@
-// GameObject.tsx
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -43,6 +42,10 @@ export default function GameObject({
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
   }, [gravity]);
+
+  useEffect(() => {
+    setPosition({ x: initialX, y: initialY });
+  }, [initialX, initialY]);
 
   return (
     <div

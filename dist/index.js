@@ -32,6 +32,7 @@ var Character = forwardRef(function Character2({
   onAction,
   objects = [],
   children,
+  movingPlatforms = [],
   ...rest
 }, externalRef) {
   const keysPressed = useRef(/* @__PURE__ */ new Set());
@@ -135,6 +136,15 @@ var Character = forwardRef(function Character2({
           }
           if (landed) currentJumps.current = 0;
           groundedRef.current = landed;
+          if (groundedRef.current && movingPlatforms?.length) {
+            for (const p of movingPlatforms) {
+              const isOnPlatform = candX + cw > p.x && candX < p.x + p.width && Math.abs(candY - (p.y + p.height)) < 2;
+              if (isOnPlatform) {
+                if (p.deltaX) candX += p.deltaX;
+                if (p.deltaY) candY += p.deltaY;
+              }
+            }
+          }
           if (dx < 0) setFacing(-1);
           else if (dx > 0) setFacing(1);
           let nextAction = "idle";
@@ -244,6 +254,9 @@ function GameObject({
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
   }, [gravity]);
+  useEffect3(() => {
+    setPosition({ x: initialX, y: initialY });
+  }, [initialX, initialY]);
   return /* @__PURE__ */ jsx4(
     "div",
     {

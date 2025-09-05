@@ -18,6 +18,14 @@ interface CharacterProps {
         width: number;
         height: number;
     }[];
+    movingPlatforms?: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        deltaX?: number;
+        deltaY?: number;
+    }[];
     children?: ReactNode;
     [key: string]: any;
 }
